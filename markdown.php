@@ -26,6 +26,10 @@ function linesFromText($md) {
 			// Start of a bulleted list item
 			$lines[] = array('type'=>'bulleted', 'text'=>$matches[1], 'raw'=>$rawline);
 		}
+		else if(preg_match("/^> (.*)/", $rawline, $matches)) {
+			// Blockquote
+			$lines[] = array('type'=>'quote', 'text'=>$matches[1], 'raw'=>$rawline);
+		}
 		else if(preg_match("/^Re #(\d+):/", $rawline, $matches)) {
 			// Comment link
 			$lines[] = array('type'=>'reply', 'reply-to'=>intval($matches[1]), 'raw'=>$rawline);
@@ -74,6 +78,9 @@ function documentFromLines($lines, $postid) {
 			} else if($type == 'numbered') {
 				$currelem = new NumberedList($line['text']);
 				$state = 'numbered-list';
+			} else if($type == 'quote') {
+				$currelem = new Quote($lines['text']);
+				$state = 'quote';
 			} else if($type == 'reply') {
 				$doc->append(new Reply($line['reply-to'], $postid));
 			} else if($type == 'text') {
@@ -124,6 +131,14 @@ function documentFromLines($lines, $postid) {
 			} else if($type == 'blank' && $nexttype == 'text' && $next['spaces'] >= 4) {
 				$currelem->compact = false;
 				$currelem->append('');
+			} else {
+				$i--;
+				$doc->append($currelem->finish());
+				$state = 'start';
+			}
+		} else if($state == 'quote') {
+			if($type == 'quote') {
+				$currelem->append($line['text']);
 			} else {
 				$i--;
 				$doc->append($currelem->finish());
@@ -241,6 +256,34 @@ class Paragraph extends Element {
 
 	function toHTML() {
 		return "<p>" . $this->text;
+	}
+}
+
+class Quote extends Element {
+	public $text;
+	protected $lines = array();
+
+	function __construct($firstLine = null) {
+		if($firstLine) { $this->lines[] = $firstLine; }
+	}
+
+	function append($line) {
+		$this->lines[] = $line;
+		return $this;
+	}
+
+	function finish() {
+		$finished = true;
+		foreach($this->lines as $i => $line) {
+			$this->text .= htmlspecialchars($line);
+			if(preg_match("/\s{2}$/", $line))
+				$this->text .= "<br>";
+		}
+		return $this;
+	}
+
+	function toHTML() {
+		return "<blockquote>" . $this->text . "</blockquote>";
 	}
 }
 
