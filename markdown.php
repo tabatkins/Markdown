@@ -30,9 +30,9 @@ function linesFromText($md) {
 			// Blockquote
 			$lines[] = array('type'=>'quote', 'text'=>$matches[1], 'raw'=>$rawline);
 		}
-		else if(preg_match("/^Re #(\d+):/", $rawline, $matches)) {
+		else if(preg_match("/^Re #(\d+):\s*(.*)$/", $rawline, $matches)) {
 			// Comment link
-			$lines[] = array('type'=>'reply', 'reply-to'=>intval($matches[1]), 'raw'=>$rawline);
+			$lines[] = array('type'=>'reply', 'reply-to'=>intval($matches[1]), 'text'=>$matches[2], 'raw'=>$rawline);
 		}
 		else if(preg_match("/^~~~~(.*)/", $rawline, $matches)) {
 			// Explicit code delimiter
@@ -82,7 +82,9 @@ function documentFromLines($lines, $postid) {
 				$currelem = new Quote($lines['text']);
 				$state = 'quote';
 			} else if($type == 'reply') {
-				$doc->append(new Reply($line['reply-to'], $postid));
+				$currelem = new Paragraph($line['text']);
+				$currelem->replyTo = $line['reply-to'];
+				$state = 'paragraph';
 			} else if($type == 'text') {
 				$currelem = new Paragraph($line['text']);
 				$state = 'paragraph';
@@ -193,20 +195,6 @@ class Separator extends Element {
 	}
 }
 
-class Reply extends Element {
-	public $replyTo;
-	public $replyId;
-
-	function __construct($replyTo, $postid) {
-		$this->replyTo = intval($replyTo);
-		$this->replyId = $postid . '-' . $replyTo;
-	}
-
-	function toHTML() {
-		return "<p>Re <a href='#" . $this->replyId . "'>#" . $this->replyTo . "</a>:</p>";
-	}
-}
-
 class Code extends Element {
 	public $text;
 	protected $lines = array();
@@ -233,6 +221,7 @@ class Code extends Element {
 
 class Paragraph extends Element {
 	public $text;
+	public $replyTo;
 	protected $lines = array();
 
 	function __construct($firstLine = null) {
@@ -246,6 +235,9 @@ class Paragraph extends Element {
 
 	function finish() {
 		$finished = true;
+		if( is_int($this->replyTo) ) {
+			$this->text .= "Re <a href='#" . $this->replyId . "'>#" . $this->replyTo . "</a>: ";
+		}
 		foreach($this->lines as $i => $line) {
 			$this->text .= htmlspecialchars($line);
 			if(preg_match("/\s{2}$/", $line))
