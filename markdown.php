@@ -2,8 +2,8 @@
 namespace Markdown;
 
 
-function parseComment($text, $postid) {
-	return documentFromLines( linesFromText($text), $postid);
+function parseComment($raw, $postid) {
+	return documentFromLines( linesFromText($raw), $postid);
 }
 
 function linesFromText($md) {
@@ -57,8 +57,6 @@ function documentFromLines($lines, $postid) {
 		$type = $line['type'];
 		$next = $lines[$i+1];
 		$nexttype = $next['type'];
-
-		//echo "i: $i <br>Start state: $state <br>Line: "; print_r($line);echo "</a>";
 
 		if($state == "start") {
 			$currelem = null;
@@ -155,12 +153,161 @@ function documentFromLines($lines, $postid) {
 				$state = 'start';
 			}
 		}
-		//echo "<details><summary>Currelem</summary>";print_r($currelem);echo "</a></details>";
-		//echo "<details><summary>Doc</summary>";print_r($doc);echo "</a></details>";
-		//echo "End state: $state <hr>";
 	}
 	return $doc;
 }
+
+function parseInlines($raw) {
+	/*	Inlines can be split into "atomic" and "nestable".
+		Atomics are things like `code` and [text](link), which can't contain any other markup inside of themselves.
+		Nestables are things like *italics* and **bold**, because they can have more markup inside.
+		You have to deal with atomics first, because otherwise you'll screw up and get a nestable ending inside of an atomic.
+		So, I first remove the atomics, replacing each occurrence with a NUL U+0000 character.
+		(I strip out literal nulls from the original text,
+		because the HTML parser will just replace them anyway.)
+		Then I process the nestable ones,
+		and then restore the atomics.
+	*/
+
+	list($text, $subs) = removeAtomics($raw);
+
+	$text = processNestables($text);
+
+	$text = restoreAtomics($text, $subs);
+
+	return $text;
+}
+
+function processNestables($raw) {
+	$text = '';
+	for($i = 0; $i < strlen($raw); $i++) {
+		$char = $raw[$i];
+
+		if( $char == '*' && preg_match('/^\*{3}([\w\00](.*[\w\00])?)\*{3}[^*\w\00]/', substr($raw, $i), $matches) ) {
+			// Bolditalic with *
+			$text .= '<b><i>' . processNestables($matches[1]) . '</i></b>';
+			$i += strlen($matches[1]) + 5;
+		} else if( $char == '_' && preg_match('/^_{3}([\a-zA-Z0-9\00](.*[\a-zA-Z0-9\00])?)_{3}[^\w\00]/', substr($raw, $i), $matches) ) {
+			// Bolditalic with _
+			$text .= '<b><i>' . processNestables($matches[1]) . '</i></b>';
+			$i += strlen($matches[1]) + 5;
+		} else if( $char == '*' && preg_match('/^\*{2}([\w\00](.*[\w\00])?)\*{2}[^*\w\00]/', substr($raw, $i), $matches) ) {
+			// Bold with *
+			$text .= '<b>' . processNestables($matches[1]) . '</b>';
+			$i += strlen($matches[1]) + 3;
+		} else if( $char == '_' && preg_match('/^_{2}([\a-zA-Z0-9\00](.*[\a-zA-Z0-9\00])?)_{2}[^\w\00]/', substr($raw, $i), $matches) ) {
+			// Bold with _
+			$text .= '<b>' . processNestables($matches[1]) . '</b>';
+			$i += strlen($matches[1]) + 3;
+		} else if( $char == '*' && preg_match('/^\*([\w\00](.*[\w\00])?)\*[^*\w\00]/', substr($raw, $i), $matches) ) {
+			// Italic with *
+			$text .= '<i>' . processNestables($matches[1]) . '</i>';
+			$i += strlen($matches[1]) + 1;
+		} else if( $char == '_' && preg_match('/^_([\a-zA-Z0-9\00](.*[\a-zA-Z0-9\00])?)_[^\w\00]/', substr($raw, $i), $matches) ) {
+			// Italic with _
+			$text .= '<i>' . processNestables($matches[1]) . '</i>';
+			$i += strlen($matches[1]) + 3;
+		} else {
+			$text .= $char;
+		}
+	}
+	return $text;
+}
+
+function removeAtomics($raw) {
+	$text = '';
+	$bel = chr(0);
+	$subs = array();
+	for($i = 0; $i < strlen($raw); $i++) {
+		$char = $raw[$i];
+
+		if( $char == '`' && preg_match('/^`\s?([^`]+?)\s?`/', substr($raw, $i), $matches) ) {
+			// Code literal: `code here`
+			$text .= $bel;
+			$subs[] = '<code>' . htmlspecialchars($matches[1]) . '</code>';
+			$i += strlen($matches[0]) - 1;
+		} else if( $char == '`' && preg_match('/^``\s?(.+?)\s?``/', substr($raw, $i), $matches) ) {
+			// Double-ticked code literal: `code here`
+			$text .= $bel;
+			$subs[] = '<code>' . htmlspecialchars($matches[1]) . '</code>';
+			$i += strlen($matches[0]) - 1;
+		} else if( $char == '!' && preg_match('/^! \[ ([^\]]+) \] \( ([^\s)]+)(\s+[^)]*)? \)/x', substr($raw, $i), $matches) ) {
+			// Image: ![alt](link title)
+			$text .= $bel;
+			if( $matches[3] ) {
+				$subs[] = '<img src="' . escapeAttr($matches[2]) . '" alt="' . escapeAttr($matches[1]) . '" title="' . escapeAttr($matches[3]) . '">';
+			} else {
+				$subs[] = '<img src="' . escapeAttr($matches[2]) . '" alt="' . escapeAttr($matches[1]) . '">';
+			}
+			$i += strlen($matches[0]) - 1;
+		} else if( $char == '[' && preg_match('/^\[ ([^\]]+) \] \( ([^\s)]+)(\s+[^)]*)? \)/x', substr($raw, $i), $matches) ) {
+			// Link: [text](link title)
+			$text .= $bel;
+			if( $matches[3] ) {
+				$subs[] = '<a href="' . escapeAttr($matches[2]) . '" title="' . escapeAttr($matches[3]) . '">' . htmlspecialchars($matches[1]) . '</a>';
+			} else {
+				$subs[] = '<a href="' . escapeAttr($matches[2]) . '">' . htmlspecialchars($matches[1]) . '</a>';
+			}
+			$i += strlen($matches[0]) - 1;
+		} else if( $char == '<' && preg_match('/^<(\w+:[^>]+)>/', substr($raw, $i), $matches) ) {
+			// Literal link: <link>
+			$text .= $bel;
+			$subs[] = '<a href="' . escapeAttr($matches[1]) . '">' . htmlspecialchars($matches[1]) . '</a>';
+			$i += strlen($matches[0]) - 1;
+		} else if( $char == '<' && preg_match('/^<(\S+@\S+)>/', substr($raw, $i), $matches) ) {
+			// Literal email address: <link>
+			$text .= $bel;
+			$subs[] = '<a href="mailto:' . escapeAttr($matches[1]) . '">' . htmlspecialchars($matches[1]) . '</a>';
+			$i += strlen($matches[0]) - 1;
+		} else if($char == '<') {
+			// All other occurences of <
+			$text .= '&lt;';
+		} else if($char === '&' && preg_match('/^& ( [a-zA-Z]+ | (\#[0-9]+) | (\#x[0-9a-fA-F]+) ) ;/x', substr($raw, $i), $matches) ) {
+			// Character reference: &copy;, etc.
+			$text .= $matches[0];
+			$i += strlen($matches[0]) - 1;
+		} else if($char == '&') {
+			// All other occurences of &
+			$text .= '&amp;';
+		} else if( $char == '\\' && preg_match('/^\\\\([\\\\`*_{}[\]()#+.!-])' . '/', substr($raw, $i), $matches) ) {
+			// Character escape
+			$text .= $bel;
+			$subs[] = $matches[0];
+			$i++;
+		} else if( $char == '\\' && $i == 0 && preg_match('/^\\\\(\d)/', $raw, $matches) ) {
+			// Escaped digit at the start of a line (to suppress it being interpreted as a numbered list)
+			$text .= $matches[1];
+			$i++;
+		} else if( $char == chr(0) ) {
+			// Literal nul in the original text.
+			// Do nothing.
+		} else {
+			$text .= $char;
+		}
+	}
+
+	return array($text, $subs);
+}
+
+function restoreAtomics($raw, $subs) {
+	$text = '';
+	$bel = chr(0);
+	for($i = 0; $i < strlen($raw); $i++) {
+		$char = $raw[$i];
+		if( $char == $bel ) {
+			$text .= array_shift($subs);
+		} else {
+			$text .= $char;
+		}
+	}
+	return $text;
+}
+
+function escapeAttr($text) {
+	return str_replace('"', '&quot;', $text);
+}
+
+
 
 class Element {
 	protected $finished = false;
@@ -196,7 +343,7 @@ class Separator extends Element {
 }
 
 class Code extends Element {
-	public $text;
+	public $raw;
 	protected $lines = array();
 
 	function __construct($firstLine = null) {
@@ -220,7 +367,7 @@ class Code extends Element {
 }
 
 class Paragraph extends Element {
-	public $text;
+	public $raw;
 	public $replyTo;
 	protected $lines = array();
 
@@ -239,7 +386,7 @@ class Paragraph extends Element {
 			$this->text .= "Re <a href='#" . $this->replyId . "'>#" . $this->replyTo . "</a>: ";
 		}
 		foreach($this->lines as $i => $line) {
-			$this->text .= htmlspecialchars($line);
+			$this->text .= parseInlines($line);
 			if(preg_match("/\s{2}$/", $line))
 				$this->text .= "<br>";
 		}
@@ -252,7 +399,7 @@ class Paragraph extends Element {
 }
 
 class Quote extends Element {
-	public $text;
+	public $raw;
 	protected $lines = array();
 
 	function __construct($firstLine = null) {
@@ -267,7 +414,7 @@ class Quote extends Element {
 	function finish() {
 		$finished = true;
 		foreach($this->lines as $i => $line) {
-			$this->text .= htmlspecialchars($line);
+			$this->text .= parseInlines($line);
 			if(preg_match("/\s{2}$/", $line))
 				$this->text .= "<br>";
 		}
@@ -311,7 +458,7 @@ class MarkdownList extends Element {
 				if($line == '')
 					$item .= "<p>";
 				else {
-					$item .= htmlspecialchars($line);
+					$item .= parseInlines($line);
 					if(preg_match("/\s{2}$/", $line))
 						$item .= "<br>";
 				}
@@ -328,12 +475,12 @@ class BulletedList extends MarkdownList {
 	}
 
 	function toHTML() {
-		$text = "<ul>";
+		$raw = "<ul>";
 		foreach($this->items as $item) {
-			$text .= "<li>" . $item;
+			$raw .= "<li>" . $item;
 		}
-		$text .= "</ul>";
-		return $text;
+		$raw .= "</ul>";
+		return $raw;
 	}
 }
 
@@ -343,11 +490,11 @@ class NumberedList extends MarkdownList {
 	}
 
 	function toHTML() {
-		$text = "<ol>";
+		$raw = "<ol>";
 		foreach($this->items as $item) {
-			$text .= "<li>" . $item;
+			$raw .= "<li>" . $item;
 		}
-		$text .= "</ol>";
-		return $text;
+		$raw .= "</ol>";
+		return $raw;
 	}
 }
