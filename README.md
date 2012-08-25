@@ -1,5 +1,7 @@
 This is yet another Markdown implementation,
 but this time written as a state machine rather than a pile of regexes like I normally see.
+(It still *uses* regexes to recognize and extract things, because they make it much easier,
+but its overall operation is DFA-based.)
 
 When finished, it will have two modes:
 
@@ -9,10 +11,9 @@ When finished, it will have two modes:
 It will also exist in both PHP and JS versions,
 because I need both of these.
 
-Right now, all I've got is a working but incomplete version of the comment parser,
-which is good enough to use on my blog.
-It doesn't yet handle the inline markdown elements,
-and doesn't do nesting or blockquotes.
+Current Progress
+----------------
 
-The code is also in a generally sorry state right now, 
-but that'll resolve itself as I work on it more.
+The comment parser is in a nearly-complete state.
+I implement all markdown elements.
+The only thing missing is handling *nested* block-level elements.
