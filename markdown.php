@@ -6,8 +6,6 @@ function parseComment($raw, $postid) {
 	return documentFromLines( linesFromText($raw), $postid);
 }
 
-$refs = array();
-
 function linesFromText($md) {
 	$lines = array();
 	foreach(explode("\n",$md) as $rawline) {
@@ -32,7 +30,7 @@ function linesFromText($md) {
 			// Blockquote
 			$lines[] = array('type'=>'quote', 'text'=>$matches[1], 'raw'=>$rawline);
 		}
-		else if(preg_match("/^[ ]{0,3} \[(\w+)\] : \s* (\S+) \s* (?| \"([^\"]+)\" | '([^']+)' | \(([^)]+)\) | ) \s*$/x", $rawline, $matches)) {
+		else if(preg_match("/^[ ]{0,3} \[([^\]]+)\] : \s* (\S+) \s* (?| \"([^\"]+)\" | '([^']+)' | \(([^)]+)\) | ) \s*$/x", $rawline, $matches)) {
 			// Link reference
 			$lines[] = array('type'=>'ref', 'ref'=>$matches[1], 'link'=>$matches[2], 'title'=>$matches[3], 'raw'=>$rawline);
 		}
@@ -54,7 +52,6 @@ function linesFromText($md) {
 }
 
 function documentFromLines($lines, $postid) {
-	global $refs;
 	$state = "start";
 	$lines[] = array('eof');
 	$doc = new Document;
@@ -78,7 +75,7 @@ function documentFromLines($lines, $postid) {
 				$currelem = new Code(substr($line['raw'], 4));
 				$state = 'indented-code';
 			} else if($type == 'ref') {
-				$refs[ strtolower($lines['ref']) ] = array('link'=>$line['link'], 'title'=>$line['title']);
+				LinkRefs::set($line['ref'], $line['link'], $line['title']);
 			} else if($type == 'bulleted') {
 				$currelem = new BulletedList($line['text']);
 				$state = 'bulleted-list';
@@ -98,11 +95,11 @@ function documentFromLines($lines, $postid) {
 			}
 		} else if($state == 'explicit-code') {
 			if($type == 'code') {
-				$doc->append($currelem->finish());
+				$doc->append($currelem);
 				$state = 'start';
 			} else if($type == 'eof') {
 				$i--;
-				$doc->append($currelem->finish());
+				$doc->append($currelem);
 				$state = 'start';
 			} else {
 				$currelem->append($line['raw']);
@@ -112,7 +109,7 @@ function documentFromLines($lines, $postid) {
 				$currelem->append(substr($line['raw'], 4));
 			} else {
 				$i--;
-				$doc->append($currelem->finish());
+				$doc->append($currelem);
 				$state = 'start';
 			}
 		} else if($state == 'bulleted-list') {
@@ -127,7 +124,7 @@ function documentFromLines($lines, $postid) {
 				$currelem->append('');
 			} else {
 				$i--;
-				$doc->append($currelem->finish());
+				$doc->append($currelem);
 				$state = 'start';
 			}
 		} else if($state == 'numbered-list') {
@@ -142,7 +139,7 @@ function documentFromLines($lines, $postid) {
 				$currelem->append('');
 			} else {
 				$i--;
-				$doc->append($currelem->finish());
+				$doc->append($currelem);
 				$state = 'start';
 			}
 		} else if($state == 'quote') {
@@ -150,7 +147,7 @@ function documentFromLines($lines, $postid) {
 				$currelem->append($line['text']);
 			} else {
 				$i--;
-				$doc->append($currelem->finish());
+				$doc->append($currelem);
 				$state = 'start';
 			}
 		} else if($state == 'paragraph') {
@@ -158,12 +155,12 @@ function documentFromLines($lines, $postid) {
 				$currelem->append($line['text']);
 			} else {
 				$i--;
-				$doc->append($currelem->finish());
+				$doc->append($currelem);
 				$state = 'start';
 			}
 		}
 	}
-	return $doc;
+	return $doc->finish();
 }
 
 function parseInlines($raw) {
@@ -224,7 +221,6 @@ function processNestables($raw) {
 }
 
 function removeAtomics($raw) {
-	global $refs;
 	$text = '';
 	$nul = chr(0);
 	$subs = array();
@@ -246,9 +242,9 @@ function removeAtomics($raw) {
 			$text .= $nul;
 			$subs[] = '<img src="' . escapeAttr($matches[2]) . '" alt="' . escapeAttr($matches[1]) . '" title="' . escapeAttr($matches[3]) . '">';
 			$i += strlen($matches[0]) - 1;
-		} else if( $char == '!' && preg_match('/^! \[ ([^\]]+) \]\[ (\w+) \]/x', substr($raw, $i), $matches) && isset($refs[strtolower($matches[2])]) ) {
+		} else if( $char == '!' && preg_match('/^! \[ ([^\]]+) \]\[ ([^\]]+) \]/x', substr($raw, $i), $matches) && LinkRefs::has($matches[2]) ) {
 			// Referenced image: ![alt][ref]
-			$ref = $refs[strtolower($matches[2])];
+			$ref = LinkRefs::get($matches[2]);
 			$text .= $nul;
 			$subs[] = '<img src="' . escapeAttr($ref['link']) . '" alt="' . escapeAttr($matches[1]) . '" title="' . escapeAttr($ref['title']) . '">';
 			$i += strlen($matches[0]) - 1;
@@ -257,15 +253,15 @@ function removeAtomics($raw) {
 			$text .= $nul;
 			$subs[] = '<a href="' . escapeAttr($matches[2]) . '" title="' . escapeAttr($matches[3]) . '">' . htmlspecialchars($matches[1]) . '</a>';
 			$i += strlen($matches[0]) - 1;
-		} else if( $char == '[' && preg_match('/^\[ ([^\]]+) \]\[ (\w+) \]/x', substr($raw, $i), $matches) && isset($refs[strtolower($matches[2])]) ) {
+		} else if( $char == '[' && preg_match('/^\[ ([^\]]+) \]\[ ([^\]]+) \]/x', substr($raw, $i), $matches) /*&& LinkRefs::has($matches[2])*/ ) {
 			// Reference Link: [text][ref]
-			$ref = $refs[strtolower($matches[2])];
+			$ref = LinkRefs::get($matches[2]);
 			$text .= $nul;
 			$subs[] = '<a href="' . escapeAttr($ref['link']) . '" title="' . escapeAttr($ref['title']) . '">' . htmlspecialchars($matches[1]) . '</a>';
 			$i += strlen($matches[0]) - 1;
-		} else if( $char == '[' && preg_match('/^\[ ([^\]]+) \]\[\]/x', substr($raw, $i), $matches) && isset($refs[strtolower($matches[1])]) ) {
+		} else if( $char == '[' && preg_match('/^\[ ([^\]]+) \]\[\]/x', substr($raw, $i), $matches) && LinkRefs::has($matches[1]) ) {
 			// Implicit Reference Link: [ref][]
-			$ref = $refs[strtolower($matches[1])];
+			$ref = LinkRefs::get($matches[1]);
 			$text .= $nul;
 			$subs[] = '<a href="' . escapeAttr($ref['link']) . '" title="' . escapeAttr($ref['title']) . '">' . htmlspecialchars($matches[1]) . '</a>';
 			$i += strlen($matches[0]) - 1;
@@ -328,12 +324,34 @@ function escapeAttr($text) {
 }
 
 
+class LinkRefs {
+	public static $linkrefs = array();
+
+	public static function set($ref, $link, $title='') {
+		self::$linkrefs[strtolower($ref)] = array('link'=>$link, 'title'=>$title);
+	}
+	public static function has($ref) {
+		return isset( self::$linkrefs[strtolower($ref)] );
+	}
+	public static function get($ref) {
+		//if( self::has($ref) ) {
+			return self::$linkrefs[strtolower($ref)];
+		//}
+	}
+}
+
+
 
 class Element {
 	protected $finished = false;
+
 	function finish() {
-		$finished = true;
+		$this->finished = true;
 		return $this;
+	}
+
+	function __toString() {
+		return $this->toHTML();
 	}
 }
 
@@ -346,6 +364,12 @@ class Document extends Element {
 
 	function append($elem) {
 		$this->elements[] = $elem;
+		return $this;
+	}
+
+	function finish() {
+		foreach($this->elements as $element) $element->finish();
+		$this->finished = true;
 		return $this;
 	}
 
