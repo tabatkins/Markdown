@@ -6,6 +6,8 @@ function parseComment($raw, $postid) {
 	return documentFromLines( linesFromText($raw), $postid);
 }
 
+$refs = array();
+
 function linesFromText($md) {
 	$lines = array();
 	foreach(explode("\n",$md) as $rawline) {
@@ -30,6 +32,10 @@ function linesFromText($md) {
 			// Blockquote
 			$lines[] = array('type'=>'quote', 'text'=>$matches[1], 'raw'=>$rawline);
 		}
+		else if(preg_match("/^[ ]{0,3} \[(\w+)\] : \s* (\S+) \s* (?| \"([^\"]+)\" | '([^']+)' | \(([^)]+)\) | ) \s*$/x", $rawline, $matches)) {
+			// Link reference
+			$lines[] = array('type'=>'ref', 'ref'=>$matches[1], 'link'=>$matches[2], 'title'=>$matches[3], 'raw'=>$rawline);
+		}
 		else if(preg_match("/^Re #(\d+):\s*(.*)$/", $rawline, $matches)) {
 			// Comment link
 			$lines[] = array('type'=>'reply', 'reply-to'=>intval($matches[1]), 'text'=>$matches[2], 'raw'=>$rawline);
@@ -48,6 +54,7 @@ function linesFromText($md) {
 }
 
 function documentFromLines($lines, $postid) {
+	global $refs;
 	$state = "start";
 	$lines[] = array('eof');
 	$doc = new Document;
@@ -70,6 +77,8 @@ function documentFromLines($lines, $postid) {
 			} else if($type == 'text' && $line['spaces'] >= 4) {
 				$currelem = new Code(substr($line['raw'], 4));
 				$state = 'indented-code';
+			} else if($type == 'ref') {
+				$refs[ strtolower($lines['ref']) ] = array('link'=>$line['link'], 'title'=>$line['title']);
 			} else if($type == 'bulleted') {
 				$currelem = new BulletedList($line['text']);
 				$state = 'bulleted-list';
@@ -215,54 +224,65 @@ function processNestables($raw) {
 }
 
 function removeAtomics($raw) {
+	global $refs;
 	$text = '';
-	$bel = chr(0);
+	$nul = chr(0);
 	$subs = array();
 	for($i = 0; $i < strlen($raw); $i++) {
 		$char = $raw[$i];
 
 		if( $char == '`' && preg_match('/^`\s?([^`]+?)\s?`/', substr($raw, $i), $matches) ) {
 			// Code literal: `code here`
-			$text .= $bel;
+			$text .= $nul;
 			$subs[] = '<code>' . htmlspecialchars($matches[1]) . '</code>';
 			$i += strlen($matches[0]) - 1;
 		} else if( $char == '`' && preg_match('/^``\s?(.+?)\s?``/', substr($raw, $i), $matches) ) {
 			// Double-ticked code literal: `code here`
-			$text .= $bel;
+			$text .= $nul;
 			$subs[] = '<code>' . htmlspecialchars($matches[1]) . '</code>';
 			$i += strlen($matches[0]) - 1;
-		} else if( $char == '!' && preg_match('/^! \[ ([^\]]+) \] \( ([^\s)]+)(\s+[^)]*)? \)/x', substr($raw, $i), $matches) ) {
+		} else if( $char == '!' && preg_match('/^! \[ ([^\]]+) \] \( ([^\s)]+)(\s+[^)]*|) \)/x', substr($raw, $i), $matches) ) {
 			// Image: ![alt](link title)
-			$text .= $bel;
-			if( $matches[3] ) {
-				$subs[] = '<img src="' . escapeAttr($matches[2]) . '" alt="' . escapeAttr($matches[1]) . '" title="' . escapeAttr($matches[3]) . '">';
-			} else {
-				$subs[] = '<img src="' . escapeAttr($matches[2]) . '" alt="' . escapeAttr($matches[1]) . '">';
-			}
+			$text .= $nul;
+			$subs[] = '<img src="' . escapeAttr($matches[2]) . '" alt="' . escapeAttr($matches[1]) . '" title="' . escapeAttr($matches[3]) . '">';
 			$i += strlen($matches[0]) - 1;
-		} else if( $char == '[' && preg_match('/^\[ ([^\]]+) \] \( ([^\s)]+)(\s+[^)]*)? \)/x', substr($raw, $i), $matches) ) {
+		} else if( $char == '!' && preg_match('/^! \[ ([^\]]+) \]\[ (\w+) \]/x', substr($raw, $i), $matches) && isset($refs[strtolower($matches[2])]) ) {
+			// Referenced image: ![alt][ref]
+			$ref = $refs[strtolower($matches[2])];
+			$text .= $nul;
+			$subs[] = '<img src="' . escapeAttr($ref['link']) . '" alt="' . escapeAttr($matches[1]) . '" title="' . escapeAttr($ref['title']) . '">';
+			$i += strlen($matches[0]) - 1;
+		} else if( $char == '[' && preg_match('/^\[ ([^\]]+) \] \( ([^\s)]+)(\s+[^)]* |) \)/x', substr($raw, $i), $matches) ) {
 			// Link: [text](link title)
-			$text .= $bel;
-			if( $matches[3] ) {
-				$subs[] = '<a href="' . escapeAttr($matches[2]) . '" title="' . escapeAttr($matches[3]) . '">' . htmlspecialchars($matches[1]) . '</a>';
-			} else {
-				$subs[] = '<a href="' . escapeAttr($matches[2]) . '">' . htmlspecialchars($matches[1]) . '</a>';
-			}
+			$text .= $nul;
+			$subs[] = '<a href="' . escapeAttr($matches[2]) . '" title="' . escapeAttr($matches[3]) . '">' . htmlspecialchars($matches[1]) . '</a>';
+			$i += strlen($matches[0]) - 1;
+		} else if( $char == '[' && preg_match('/^\[ ([^\]]+) \]\[ (\w+) \]/x', substr($raw, $i), $matches) && isset($refs[strtolower($matches[2])]) ) {
+			// Reference Link: [text][ref]
+			$ref = $refs[strtolower($matches[2])];
+			$text .= $nul;
+			$subs[] = '<a href="' . escapeAttr($ref['link']) . '" title="' . escapeAttr($ref['title']) . '">' . htmlspecialchars($matches[1]) . '</a>';
+			$i += strlen($matches[0]) - 1;
+		} else if( $char == '[' && preg_match('/^\[ ([^\]]+) \]\[\]/x', substr($raw, $i), $matches) && isset($refs[strtolower($matches[1])]) ) {
+			// Implicit Reference Link: [ref][]
+			$ref = $refs[strtolower($matches[1])];
+			$text .= $nul;
+			$subs[] = '<a href="' . escapeAttr($ref['link']) . '" title="' . escapeAttr($ref['title']) . '">' . htmlspecialchars($matches[1]) . '</a>';
 			$i += strlen($matches[0]) - 1;
 		} else if( $char == '<' && preg_match('/^<(\w+:[^>]+)>/', substr($raw, $i), $matches) ) {
 			// Literal link: <link>
-			$text .= $bel;
+			$text .= $nul;
 			$subs[] = '<a href="' . escapeAttr($matches[1]) . '">' . htmlspecialchars($matches[1]) . '</a>';
 			$i += strlen($matches[0]) - 1;
 		} else if( $char == '<' && preg_match('/^<(\S+@\S+)>/', substr($raw, $i), $matches) ) {
 			// Literal email address: <link>
-			$text .= $bel;
+			$text .= $nul;
 			$subs[] = '<a href="mailto:' . escapeAttr($matches[1]) . '">' . htmlspecialchars($matches[1]) . '</a>';
 			$i += strlen($matches[0]) - 1;
 		} else if($char == '<') {
 			// All other occurences of <
 			$text .= '&lt;';
-		} else if($char === '&' && preg_match('/^& ( [a-zA-Z]+ | (\#[0-9]+) | (\#x[0-9a-fA-F]+) ) ;/x', substr($raw, $i), $matches) ) {
+		} else if($char === '&' && preg_match('/^& ( [a-zA-Z]+ | \#[0-9]+ | \#x[0-9a-fA-F]+ ) ;/x', substr($raw, $i), $matches) ) {
 			// Character reference: &copy;, etc.
 			$text .= $matches[0];
 			$i += strlen($matches[0]) - 1;
@@ -271,7 +291,7 @@ function removeAtomics($raw) {
 			$text .= '&amp;';
 		} else if( $char == '\\' && preg_match('/^\\\\([\\\\`*_{}[\]()#+.!-])' . '/', substr($raw, $i), $matches) ) {
 			// Character escape
-			$text .= $bel;
+			$text .= $nul;
 			$subs[] = $matches[0];
 			$i++;
 		} else if( $char == '\\' && $i == 0 && preg_match('/^\\\\(\d)/', $raw, $matches) ) {
@@ -291,10 +311,10 @@ function removeAtomics($raw) {
 
 function restoreAtomics($raw, $subs) {
 	$text = '';
-	$bel = chr(0);
+	$nul = chr(0);
 	for($i = 0; $i < strlen($raw); $i++) {
 		$char = $raw[$i];
-		if( $char == $bel ) {
+		if( $char == $nul ) {
 			$text .= array_shift($subs);
 		} else {
 			$text .= $char;
