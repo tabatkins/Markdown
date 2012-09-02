@@ -1,12 +1,13 @@
 <?php
 include "markdown.php";
+include "commentmarkdown.php";
 
 function assert_equal($md, $html) {
-	$parsedmd = Markdown\parseComment($md, "post1")->toHTML();
+	$parsedmd = Markdown\parse($md, "post1")->toHTML();
 	if($parsedmd == $html) {
 		echo "<p class=pass>PASS";
 	} else {
-		echo "<p class=fail>FAIL<pre>".htmlspecialchars($md)."</pre><pre>".htmlspecialchars($parsedmd)."</pre><pre>".htmlspecialchars($html)."</pre>";
+		echo "<p class=fail>FAIL<pre>".htmlspecialchars($md)."</pre>Actual:<pre>".htmlspecialchars($parsedmd)."</pre>Expected:<pre>".htmlspecialchars($html)."</pre>";
 	}
 }
 
@@ -18,6 +19,7 @@ pre { background: rgba(0,0,0,.2); }
 </style>
 <?php
 
+/* Inline tests */
 assert_equal("Testing *italics*.", "<p>Testing <i>italics</i>.");
 assert_equal("Testing *multi-word italics*.", "<p>Testing <i>multi-word italics</i>.");
 assert_equal("Testing *multi-word 2*3 italics*.", "<p>Testing <i>multi-word 2*3 italics</i>.");
@@ -50,3 +52,17 @@ assert_equal("Testing ![ref images][ref5].\n [ref5]: http://xanthir.com/pony ", 
 assert_equal("Testing ![ref images][ref6].\n [ref6]: http://xanthir.com/pony \"a title\"", '<p>Testing <img src="http://xanthir.com/pony" alt="ref images" title="a title">.');
 assert_equal("Testing ![ref images][ref7].\n [ref7]: http://xanthir.com/pony 'a title'", '<p>Testing <img src="http://xanthir.com/pony" alt="ref images" title="a title">.');
 assert_equal("Testing ![ref images][ref8].\n [ref8]: http://xanthir.com/pony (a title)", '<p>Testing <img src="http://xanthir.com/pony" alt="ref images" title="a title">.');
+
+
+/* Block tests */
+assert_equal("Testing H1\n========", "<h1>Testing H1</h1>");
+assert_equal("Testing H2\n--------", "<h2>Testing H2</h2>");
+assert_equal("# Testing H1", "<h1>Testing H1</h1>");
+assert_equal("# Testing H1  ", "<h1>Testing H1</h1>");
+assert_equal("#\t\tTesting H1", "<h1>Testing H1</h1>");
+assert_equal("# Testing H1 ####", "<h1>Testing H1</h1>");
+assert_equal("###### Testing H6", "<h6>Testing H6</h6>");
+assert_equal("####### Testing H7", "<p>####### Testing H7");
+assert_equal(" # Testing headings", "<p># Testing headings");
+assert_equal("Testing headings\n ======", "<p>Testing headings ======");
+assert_equal("\\1. Not a list", "<p>1. Not a list");

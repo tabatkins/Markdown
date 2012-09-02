@@ -1,8 +1,8 @@
 <?php
-namespace Markdown;
+namespace CommentMarkdown;
 
-function parse($raw) {
-	return documentFromLines( linesFromText($raw) );
+function parse($raw, $postid) {
+	return documentFromLines( linesFromText($raw), $postid );
 }
 
 function linesFromText($md) {
@@ -12,18 +12,6 @@ function linesFromText($md) {
 		if(trim($rawline) == '') {
 			// blank line
 			$lines[] = array('type'=>'blank');
-		}
-		else if(preg_match("/^={3,}\s*$/", $rawline)) {
-			// <h1> underline
-			$lines[] = array('type'=>'headingunderline', 'level'=>1, 'raw'=>$rawline);
-		}
-		else if(preg_match("/^-{3,}\s*$/", $rawline)) {
-			// <h2> underline
-			$lines[] = array('type'=>'headingunderline', 'level'=>2, 'raw'=>$rawline);
-		}
-		else if(preg_match("/^(#{1,6})\s+(.*)/", $rawline, $matches)) {
-			// heading
-			$lines[] = array('type'=>'heading', 'text'=>trim($matches[2], " \t#"), 'level'=>strlen($matches[1]), 'raw'=>$rawtext);
 		}
 		else if(preg_match("/^( (\*\s*){3,} | (-\s*){3,} | (_\s*){3,} )$/x", trim($rawline))) {
 			// <hr>
@@ -44,6 +32,10 @@ function linesFromText($md) {
 		else if(preg_match("/^[ ]{0,3} \[([^\]]+)\] : \s* (\S+) \s* (?| \"([^\"]+)\" | '([^']+)' | \(([^)]+)\) | ) \s*$/x", $rawline, $matches)) {
 			// Link reference
 			$lines[] = array('type'=>'ref', 'ref'=>$matches[1], 'link'=>$matches[2], 'title'=>$matches[3], 'raw'=>$rawline);
+		}
+		else if(preg_match("/^Re #(\d+):\s*(.*)$/", $rawline, $matches)) {
+			// Comment link
+			$lines[] = array('type'=>'reply', 'reply-to'=>intval($matches[1]), 'text'=>$matches[2], 'raw'=>$rawline);
 		}
 		else if(preg_match("/^~~~~(.*)/", $rawline, $matches)) {
 			// Explicit code delimiter
@@ -73,10 +65,8 @@ function documentFromLines($lines, $postid='') {
 			$currelem = null;
 			if($type == 'blank') {
 				// Do nothing.
-			} else if($type == 'hr' || ($type == 'headingunderline' && $line['level'] == 2)) {
+			} else if($type == 'hr') {
 				$doc->append(new Separator);
-			} else if($type == 'heading') {
-				$doc->append(new Heading($line['level'], $line['text']));
 			} else if($type == 'code') {
 				$currelem = new Code;
 				$state = 'explicit-code';
@@ -94,9 +84,11 @@ function documentFromLines($lines, $postid='') {
 			} else if($type == 'quote') {
 				$currelem = new Quote($lines['text']);
 				$state = 'quote';
-			} else if($type == 'text' && $nexttype == 'headingunderline') {
-				$doc->append(new Heading($nextline['level'], $line['text']));
-				$i++;
+			} else if($type == 'reply') {
+				$currelem = new Paragraph($line['text']);
+				$currelem->replyId = $postid . '-' . $line['reply-to'];
+				$currelem->replyTo = $line['reply-to'];
+				$state = 'paragraph';
 			} else if($type == 'text') {
 				$currelem = new Paragraph($line['text']);
 				$state = 'paragraph';
@@ -293,14 +285,14 @@ function removeAtomics($raw) {
 		} else if($char == '&') {
 			// All other occurences of &
 			$text .= '&amp;';
-		} else if( $char == '\\' && $i == 0 && preg_match('/\d/', $raw[1]) ) {
-			// Escaped digit at the start of a line (to suppress it being interpreted as a numbered list)
-			$text .= $raw[1];
-			$i++;
 		} else if( $char == '\\' && preg_match('/^\\\\([\\\\`*_{}[\]()#+.!-])' . '/', substr($raw, $i), $matches) ) {
 			// Character escape
 			$text .= $nul;
 			$subs[] = $matches[0];
+			$i++;
+		} else if( $char == '\\' && $i == 0 && preg_match('/^\\\\(\d)/', $raw, $matches) ) {
+			// Escaped digit at the start of a line (to suppress it being interpreted as a numbered list)
+			$text .= $matches[1];
 			$i++;
 		} else if( $char == chr(0) ) {
 			// Literal nul in the original text.
@@ -394,26 +386,6 @@ class Separator extends Element {
 	}
 }
 
-class Heading extends Element {
-	public $text;
-	public $level;
-
-	function __construct($level, $text) {
-		$this->level = $level;
-		$this->text = $text;
-	}
-
-	function finish() {
-		$this->finished = true;
-		$this->text = parseInlines($this->text);
-		return $this;
-	}
-
-	function toHTML() {
-		return "<h" . $this->level . ">" . $this->text . "</h" . $this->level . ">";
-	}
-}
-
 class Code extends Element {
 	public $raw;
 	protected $lines = array();
@@ -440,6 +412,8 @@ class Code extends Element {
 
 class Paragraph extends Element {
 	public $raw;
+	public $replyId;
+	public $replyTo;
 	protected $lines = array();
 
 	function __construct($firstLine = null) {
@@ -453,6 +427,9 @@ class Paragraph extends Element {
 
 	function finish() {
 		$finished = true;
+		if( is_int($this->replyTo) ) {
+			$this->text .= "Re <a href='#" . $this->replyId . "'>#" . $this->replyTo . "</a>: ";
+		}
 		foreach($this->lines as $i=>$line) {
 			$this->text .= parseInlines($line);
 			if( $i != count($this->lines) - 1 )
@@ -531,8 +508,8 @@ class MarkdownList extends Element {
 					$item .= "<p>";
 				else {
 					$item .= parseInlines($line);
-					if($i != count($unfinisheditem) - 1)
-						$item .= ' ';
+					if( $i != count($unfinisheditem) - 1 )
+						$this->text .= ' ';
 					if(preg_match("/\s{2}$/", $line))
 						$item .= "<br>";
 				}
