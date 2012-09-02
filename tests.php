@@ -39,7 +39,6 @@ assert_equal("Testing *italics `across` literal*.", "<p>Testing <i>italics <code
 assert_equal("Testing **`bolded literals`**.", "<p>Testing <b><code>bolded literals</code></b>.");
 assert_equal("Testing <http://www.example.com>.", '<p>Testing <a href="http://www.example.com">http://www.example.com</a>.');
 assert_equal("Testing <fakeemail@example.com>.", '<p>Testing <a href="mailto:fakeemail@example.com">fakeemail@example.com</a>.');
-assert_equal("Testing <not a link>.", "<p>Testing &lt;not a link>.");
 assert_equal("Testing a stray < bracket.", "<p>Testing a stray &lt; bracket.");
 assert_equal("Testing [links](http://www.example.com).", '<p>Testing <a href="http://www.example.com" title="">links</a>.');
 assert_equal("Testing [ref links][ref1].\n [ref1]: http://example.com ", '<p>Testing <a href="http://example.com" title="">ref links</a>.');
@@ -52,6 +51,9 @@ assert_equal("Testing ![ref images][ref5].\n [ref5]: http://xanthir.com/pony ", 
 assert_equal("Testing ![ref images][ref6].\n [ref6]: http://xanthir.com/pony \"a title\"", '<p>Testing <img src="http://xanthir.com/pony" alt="ref images" title="a title">.');
 assert_equal("Testing ![ref images][ref7].\n [ref7]: http://xanthir.com/pony 'a title'", '<p>Testing <img src="http://xanthir.com/pony" alt="ref images" title="a title">.');
 assert_equal("Testing ![ref images][ref8].\n [ref8]: http://xanthir.com/pony (a title)", '<p>Testing <img src="http://xanthir.com/pony" alt="ref images" title="a title">.');
+assert_equal("Testing <not a link>.", "<p>Testing <not a link>.");
+assert_equal("Some <i>inline markup</i>.", "<p>Some <i>inline markup</i>.");
+assert_equal("Slightly <strong id='foo'>more</strong> complicated markup.", "<p>Slightly <strong id='foo'>more</strong> complicated markup.");
 
 
 /* Block tests */

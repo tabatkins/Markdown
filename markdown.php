@@ -273,6 +273,11 @@ function removeAtomics($raw) {
 			$text .= $nul;
 			$subs[] = '<a href="' . escapeAttr($ref['link']) . '" title="' . escapeAttr($ref['title']) . '">' . htmlspecialchars($matches[1]) . '</a>';
 			$i += strlen($matches[0]) - 1;
+		} else if( $char == '<' && preg_match('/^<\/?\w+(\s+\S[^>]*)?>/', substr($raw, $i), $matches) ) {
+			// HTML tag
+			$text .= $nul;
+			$subs[] = $matches[0];
+			$i += strlen($matches[0]) - 1;
 		} else if( $char == '<' && preg_match('/^<(\w+:[^>]+)>/', substr($raw, $i), $matches) ) {
 			// Literal link: <link>
 			$text .= $nul;
