@@ -89,7 +89,7 @@ class Document extends Element {
 	function linesFromText($rawlines) {
 		$lines = array();
 		foreach($rawlines as $rawline) {
-			if(ord($rawline[strlen($rawline) - 1]) == 13) $rawline = substr($rawline,0,-1);
+			$rawline = trim($rawline, "\n\r");
 			if(trim($rawline) == '') {
 				// blank line
 				$lines[] = array('type'=>'blank');
