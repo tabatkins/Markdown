@@ -21,6 +21,8 @@ Current Progress
 Both modes of the parser are now complete for regular Markdown!
 (I haven't implemented all the Markdown Extra stuff yet.)
 
+(Edit: whoops, I don't yet implement block HTML, only inline HTML.)
+
 Use
 ---
 
