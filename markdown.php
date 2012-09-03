@@ -80,12 +80,15 @@ class Document extends Element {
 		foreach($exclusions as $exclusion) {
 			$this->features[$exclusion] = false;
 		}
+		if(is_string($md)) {
+			$md = explode("\n", $md);
+		}
 		return $this->documentFromLines( $this->linesFromText($md) );
 	}
 
-	function linesFromText($md) {
+	function linesFromText($rawlines) {
 		$lines = array();
-		foreach(explode("\n",$md) as $rawline) {
+		foreach($rawlines as $rawline) {
 			if(ord($rawline[strlen($rawline) - 1]) == 13) $rawline = substr($rawline,0,-1);
 			if(trim($rawline) == '') {
 				// blank line
