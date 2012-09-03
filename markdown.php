@@ -70,7 +70,7 @@ class Document extends Element {
 
 	function excluding() {
 		$excluding = array();
-		foreach($features as $feature=>$on) {
+		foreach($this->features as $feature=>$on) {
 			if(!$on) $excluding[] = $feature;
 		}
 		return $excluding;
@@ -118,7 +118,7 @@ class Document extends Element {
 				// Start of a bulleted list item
 				$lines[] = array('type'=>'bulleted', 'text'=>$matches[1], 'raw'=>$rawline);
 			}
-			else if(preg_match("/^> (.*)/", $rawline, $matches)) {
+			else if(preg_match("/^>[ ]?(.*)/", $rawline, $matches)) {
 				// Blockquote
 				$lines[] = array('type'=>'quote', 'text'=>$matches[1], 'raw'=>$rawline);
 			}
@@ -184,7 +184,7 @@ class Document extends Element {
 					$currelem->doc = $this;
 					$state = 'numbered-list';
 				} else if($type == 'quote') {
-					$currelem = new Quote($lines['text']);
+					$currelem = new Quote($line['text']);
 					$currelem->doc = $this;
 					$state = 'quote';
 				} else if($type == 'reply') {
@@ -226,9 +226,8 @@ class Document extends Element {
 				} else if($type == 'bulleted') {
 					$currelem->newItem($line['text']);
 				} else if($type == 'blank' && $nexttype == 'bulleted') {
-					$currelem->compact = false;
+					// Do nothing
 				} else if($type == 'blank' && $nexttype == 'text' && $nextline['spaces'] >= 4) {
-					$currelem->compact = false;
 					$currelem->append('');
 				} else {
 					$i--;
@@ -241,9 +240,8 @@ class Document extends Element {
 				} else if($type == 'numbered') {
 					$currelem->newItem($line['text']);
 				} else if($type == 'blank' && $nexttype == 'numbered') {
-					$currelem->compact = false;
+					// Do nothing
 				} else if($type == 'blank' && $nexttype == 'text' && $nextline['spaces'] >= 4) {
-					$currelem->compact = false;
 					$currelem->append('');
 				} else {
 					$i--;
@@ -560,6 +558,7 @@ class Reply extends Paragraph {
 
 class Quote extends Element {
 	public $raw;
+	public $contents;
 	protected $lines = array();
 
 	function __construct($firstLine = null) {
@@ -572,24 +571,19 @@ class Quote extends Element {
 	}
 
 	function finish() {
-		foreach($this->lines as $i=>$line) {
-			$this->text .= $this->doc->parseInlines($line);
-			if( $i != count($this->lines) - 1 )
-				$this->text .= ' ';
-			if(preg_match("/\s{2}$/", $line))
-				$this->text .= "<br>";
-		}
+		$excluding = $this->doc->excluding();
+		$this->contents = new Document();
+		$this->contents->parse($this->lines, $excluding);
 		return parent::finish();
 	}
 
 	function toHTML() {
-		return "<blockquote>" . $this->text . "</blockquote>";
+		return "<blockquote>" . $this->contents->toHTML() . "</blockquote>";
 	}
 }
 
 class MarkdownList extends Element {
 	public $items;
-	public $compact = true;
 	protected $unfinisheditems = array();
 
 	function __construct($firstLine = null) {
@@ -610,23 +604,16 @@ class MarkdownList extends Element {
 	}
 
 	function finish() {
+		$excluding = $this->doc->excluding();
+		$compact = true;
 		foreach($this->unfinisheditems as $unfinisheditem) {
-			$item = '';
-			foreach($unfinisheditem as $i=>$line) {
-				if($i == 0 && !$compact)
-					$item .= "<p>";
-				if($line == '')
-					$item .= "<p>";
-				else {
-					$this->text .= $this->doc->parseInlines($line);
-					if($i != count($unfinisheditem) - 1)
-						$item .= ' ';
-					if(preg_match("/\s{2}$/", $line))
-						$item .= "<br>";
-				}
-			}
-			$this->items[] = $item;
+			$doc = new Document();
+			$doc->parse($unfinisheditem, $excluding);
+			if( count($doc->elements) > 1 || !($doc->elements[0] instanceof Paragraph) )
+				$compact = false;
+			$this->items[] = $doc;
 		}
+		$this->compact = $compact;
 		return parent::finish();
 	}
 }
@@ -639,7 +626,11 @@ class BulletedList extends MarkdownList {
 	function toHTML() {
 		$raw = "<ul>";
 		foreach($this->items as $item) {
-			$raw .= "<li>" . $item;
+			if($this->compact) {
+				$raw .= "<li>" . $item->elements[0]->text;
+			} else {
+				$raw .= "<li>" . $item->toHTML();
+			}
 		}
 		$raw .= "</ul>";
 		return $raw;
@@ -654,7 +645,11 @@ class NumberedList extends MarkdownList {
 	function toHTML() {
 		$raw = "<ol>";
 		foreach($this->items as $item) {
-			$raw .= "<li>" . $item;
+			if($this->compact) {
+				$raw .= "<li>" . $item->elements[0]->text;
+			} else {
+				$raw .= "<li>" . $item->toHTML();
+			}
 		}
 		$raw .= "</ol>";
 		return $raw;

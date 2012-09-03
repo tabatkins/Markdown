@@ -71,3 +71,14 @@ assert_equal(" # Testing headings", "<p># Testing headings");
 assert_equal("Testing headings\n ======", "<p>Testing headings ======");
 assert_equal("\\1. Not a list", "<p>1. Not a list");
 assert_equal("Re #1: foo bar", "<p>Re #1: foo bar");
+
+assert_equal("> foo\n> bar", "<blockquote><p>foo bar</blockquote>");
+assert_equal(">foo\n>bar\n>\n>baz", "<blockquote><p>foo bar<p>baz</blockquote>");
+assert_equal(">foo\n>1. bar\n> bar\n> 2. bar \n>\n>baz\noutside", "<blockquote><p>foo<ol><li>bar bar<li>bar </ol><p>baz</blockquote><p>outside");
+assert_equal(">foo\n>>bar\n>foo", "<blockquote><p>foo<blockquote><p>bar</blockquote><p>foo</blockquote>");
+assert_equal(">foo\n> >bar\n>foo", "<blockquote><p>foo<blockquote><p>bar</blockquote><p>foo</blockquote>");
+
+assert_equal("1. foo", "<ol><li>foo</ol>");
+assert_equal("1. foo\n2. bar", "<ol><li>foo<li>bar</ol>");
+assert_equal("1. foo\n\n    foo\n2. bar", "<ol><li><p>foo<p>foo<li><p>bar</ol>");
+assert_equal("1. 1. foo\n    2. foo\n2. bar", "<ol><li><ol><li>foo<li>foo</ol><li><p>bar</ol>");
