@@ -6,13 +6,6 @@ function parse($raw) {
 }
 
 class Document extends Element {
-	public $elements = array();
-	public $features = array(
-		"headings"=>true,
-		"replies"=>true,
-		"html"=>true
-		);
-	public $linkrefs = array();
 
 	static function parseDocument($raw) {
 		$parser = new Document;
@@ -28,6 +21,9 @@ class Document extends Element {
 	  ///////////////////////////
 	 // Element Functionality //
 	///////////////////////////
+
+	public $elements = array();
+
 	function __construct($elements = array()) {
 		$this->elements = $elements;
 	}
@@ -51,6 +47,8 @@ class Document extends Element {
 	 // Reference Link Tracking //
 	/////////////////////////////
 
+	public $linkrefs = array();
+
 	function setLink($ref, $link, $title='') {
 		$this->linkrefs[strtolower($ref)] = array('link'=>$link, 'title'=>$title);
 		return $this;
@@ -67,6 +65,20 @@ class Document extends Element {
 	  /////////////
 	 // Parsing //
 	/////////////
+
+	public $features = array(
+		"headings"=>true,
+		"replies"=>true,
+		"html"=>true
+		);
+
+	function excluding() {
+		$excluding = array();
+		foreach($features as $feature=>$on) {
+			if(!$on) $excluding[] = $feature;
+		}
+		return $excluding;
+	}
 
 	function parse($md, $exclusions) {
 		foreach($exclusions as $exclusion) {
