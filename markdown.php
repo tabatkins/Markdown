@@ -118,6 +118,14 @@ class Document extends Element {
 				// Start of a bulleted list item
 				$lines[] = array('type'=>'bulleted', 'text'=>$matches[1], 'raw'=>$rawline);
 			}
+			else if($this->features['html'] && preg_match("/^<(hr|img)(\s+\S[^>]*)?>\s*$/", $rawline, $matches)) {
+				// HTML block-level start tag
+				$lines[] = array('type'=>'html-null', 'tag'=>$matches[1], 'raw'=>$rawline);
+			}
+			else if($this->features['html'] && preg_match("/^<(address|article|aside|audio|blockquote|canvas|details|dialog|div|dl|figure|footer|form|h1|h2|h3|h4|h5|h6|header|hgroup|hr|iframe|img|map|nav|object|ol|p|pre|script|section|style|table|ul|video)(\s+\S[^>]*)?>$/", $rawline, $matches)) {
+				// HTML block-level start tag
+				$lines[] = array('type'=>'html-start', 'tag'=>$matches[1], 'raw'=>$rawline);
+			}
 			else if(preg_match("/^>[ ]?(.*)/", $rawline, $matches)) {
 				// Blockquote
 				$lines[] = array('type'=>'quote', 'text'=>$matches[1], 'raw'=>$rawline);
@@ -191,6 +199,14 @@ class Document extends Element {
 					$currelem = new Reply($line['reply-to'], $line['text']);
 					$currelem->doc = $this;
 					$state = 'paragraph';
+				} else if($type == 'html-null') {
+					$currelem = new HTML($line['tag'], $line['raw']);
+					$currelem->doc = $this;
+					$this->append($currelem);
+				} else if($type == 'html-start') {
+					$currelem = new HTML($line['tag'], $line['raw']);
+					$currelem->doc = $this;
+					$state = 'html';
 				} else if($type == 'text' && $nexttype == 'headingunderline') {
 					$currelem = new Heading($nextline['level'], $line['text']);
 					$currelem->doc = $this;
@@ -255,6 +271,18 @@ class Document extends Element {
 					$i--;
 					$this->append($currelem);
 					$state = 'start';
+				}
+			} else if($state == 'html') {
+				if($line['raw'] == "</".$currelem->tag.">") {
+					$currelem->append($line['raw']);
+					$this->append($currelem);
+					$state = 'start';
+				} else if($type == 'eof') {
+					$i--;
+					$this->append($currelem);
+					$state = 'start';
+				} else {
+					$currelem->append($line['raw']);
 				}
 			} else if($state == 'paragraph') {
 				if($type == 'text') {
@@ -486,7 +514,6 @@ class Heading extends Element {
 }
 
 class Code extends Element {
-	public $raw;
 	protected $lines = array();
 
 	function __construct($firstLine = null) {
@@ -508,8 +535,31 @@ class Code extends Element {
 	}
 }
 
+class HTML extends Element {
+	public $tag;
+	protected $lines = array();
+
+	function __construct($tag, $firstLine=null) {
+		$this->tag = $tag;
+		if($firstLine) { $this->lines[] = $firstLine; }
+	}
+
+	function append($line) {
+		$this->lines[] = $line;
+		return $this;
+	}
+
+	function finish() {
+		$this->text = implode("\n",$this->lines);
+		return parent::finish();
+	}
+
+	function toHTML() {
+		return $this->text;
+	}
+}
+
 class Paragraph extends Element {
-	public $raw;
 	protected $lines = array();
 
 	function __construct($firstLine = null) {

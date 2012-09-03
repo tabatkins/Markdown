@@ -19,9 +19,17 @@ Current Progress
 ----------------
 
 Both modes of the parser are now complete for regular Markdown!
-(I haven't implemented all the Markdown Extra stuff yet.)
 
-(Edit: whoops, I don't yet implement block HTML, only inline HTML.)
+The "document" parser implements all of regular Markdown,
+plus the `~~~~` code blocks from Markdown Extra.
+(I'll add more of Markdown Extra soon.)
+
+The "comment" parser is the same,
+but it disallows headings and HTML (block or inline).
+Additionally, it introduces a new block type - the "reply".
+A line like "Re #2: more text" starts a reply,
+and it's otherwise identical to a paragraph.
+Replies automatically link up to the referenced comment.
 
 Use
 ---

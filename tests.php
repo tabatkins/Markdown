@@ -82,3 +82,5 @@ assert_equal("1. foo", "<ol><li>foo</ol>");
 assert_equal("1. foo\n2. bar", "<ol><li>foo<li>bar</ol>");
 assert_equal("1. foo\n\n    foo\n2. bar", "<ol><li><p>foo<p>foo<li><p>bar</ol>");
 assert_equal("1. 1. foo\n    2. foo\n2. bar", "<ol><li><ol><li>foo<li>foo</ol><li><p>bar</ol>");
+
+assert_equal("foo\n<div>\n bar\n1. bar\n </div>\n</div>\nfoo", "<p>foo<div>\n bar\n1. bar\n </div>\n</div><p>foo");
