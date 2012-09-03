@@ -3,18 +3,20 @@ include "markdown.php";
 include "commentmarkdown.php";
 
 function assert_equal($md, $html) {
-	$parsedmd = Markdown\parse($md, "post1")->toHTML();
-	if($parsedmd == $html) {
-		echo "<p class=pass>PASS";
-	} else {
-		echo "<p class=fail>FAIL<pre>".htmlspecialchars($md)."</pre>Actual:<pre>".htmlspecialchars($parsedmd)."</pre>Expected:<pre>".htmlspecialchars($html)."</pre>";
-	}
+	$parsedmd = Markdown\Document::parseDocument($md)->toHTML();
+	$pass = $parsedmd == $html;
+	echo "<details class=" . ($pass ? 'pass' : 'fail') . ">";
+		echo "<summary>" . ($pass ? 'PASS' : 'FAIL') . "</summary>";
+		echo "<pre>".htmlspecialchars($md)."</pre>";
+		echo "Actual:<pre>".htmlspecialchars($parsedmd)."</pre>";
+		echo "Expected:<pre>".htmlspecialchars($html)."</pre>";
+	echo "</details>";
 }
 
 ?>
 <style>
-.pass { color: green; margin: 0; font-size: 10px;}
-.fail { color: white; background: red; padding: 2px; font-weight: bold; }
+.pass > summary { color: green; margin: 0; font-size: 10px;}
+.fail > summary { color: white; background: red; padding: 2px; font-weight: bold; }
 pre { background: rgba(0,0,0,.2); }
 </style>
 <?php
@@ -45,6 +47,7 @@ assert_equal("Testing [ref links][ref1].\n [ref1]: http://example.com ", '<p>Tes
 assert_equal("Testing [ref links][ref2].\n [ref2]: http://example.com \"a title\"", '<p>Testing <a href="http://example.com" title="a title">ref links</a>.');
 assert_equal("Testing [ref links][ref3].\n [ref3]: http://example.com 'a title'", '<p>Testing <a href="http://example.com" title="a title">ref links</a>.');
 assert_equal("Testing [ref links][ref4].\n [ref4]: http://example.com (a title)", '<p>Testing <a href="http://example.com" title="a title">ref links</a>.');
+assert_equal("Testing [unreffed links][ref 4].", '<p>Testing [unreffed links][ref 4].');
 assert_equal("Testing [ref links][].\n [Ref Links]: http://example.com (a title)", '<p>Testing <a href="http://example.com" title="a title">ref links</a>.');
 assert_equal("Testing ![images](http://xanthir.com/pony).", '<p>Testing <img src="http://xanthir.com/pony" alt="images" title="">.');
 assert_equal("Testing ![ref images][ref5].\n [ref5]: http://xanthir.com/pony ", '<p>Testing <img src="http://xanthir.com/pony" alt="ref images" title="">.');
