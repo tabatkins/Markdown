@@ -346,7 +346,7 @@ class Document extends Element {
 			} else if( $char == '_' && preg_match('/^_([\a-zA-Z0-9\00](.*[\a-zA-Z0-9\00])?)_[^\w\00]/', substr($raw, $i), $matches) ) {
 				// Italic with _
 				$text .= '<i>' . $this->processNestables($matches[1]) . '</i>';
-				$i += strlen($matches[1]) + 3;
+				$i += strlen($matches[1]) + 1;
 			} else {
 				$text .= $char;
 			}
