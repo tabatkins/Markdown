@@ -28,6 +28,8 @@ Use
 
 To use, just include the `markdown.php` file,
 then call the static functions `Document::parseDocument(str)` or `Document::parseComment(str,postid)`.
+You'll get back a Document object, which will stringify into the appropriate HTML.
+(Or you can poke around in it yourself to manually fix things up.)
 
 You may wish to customize the way in which the Reply class links to replies,
 if your own blog uses a syntax other than `#<postid>-<commentnumber>`.
