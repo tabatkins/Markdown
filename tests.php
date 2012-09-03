@@ -1,6 +1,5 @@
 <?php
 include "markdown.php";
-include "commentmarkdown.php";
 
 function assert_equal($md, $html) {
 	$parsedmd = Markdown\Document::parseDocument($md)->toHTML();
@@ -71,3 +70,4 @@ assert_equal("####### Testing H7", "<p>####### Testing H7");
 assert_equal(" # Testing headings", "<p># Testing headings");
 assert_equal("Testing headings\n ======", "<p>Testing headings ======");
 assert_equal("\\1. Not a list", "<p>1. Not a list");
+assert_equal("Re #1: foo bar", "<p>Re #1: foo bar");

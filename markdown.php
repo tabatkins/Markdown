@@ -7,17 +7,22 @@ function parse($raw) {
 
 class Document extends Element {
 	public $elements = array();
+	public $features = array(
+		"headings"=>true,
+		"replies"=>true,
+		"html"=>true
+		);
 	public $linkrefs = array();
 
 	static function parseDocument($raw) {
 		$parser = new Document;
-		return $parser->parse($raw);
+		return $parser->parse($raw, array('replies'));
 	}
 
 	static function parseComment($raw, $postid) {
 		Reply::$postid = $postid;
 		$parser = new Document;
-		return $parser->parse($raw);
+		return $parser->parse($raw, array('headings', 'html'));
 	}
 
 	  ///////////////////////////
@@ -63,7 +68,10 @@ class Document extends Element {
 	 // Parsing //
 	/////////////
 
-	function parse($md) {
+	function parse($md, $exclusions) {
+		foreach($exclusions as $exclusion) {
+			$this->features[$exclusion] = false;
+		}
 		return $this->documentFromLines( $this->linesFromText($md) );
 	}
 
@@ -75,15 +83,15 @@ class Document extends Element {
 				// blank line
 				$lines[] = array('type'=>'blank');
 			}
-			else if(preg_match("/^={3,}\s*$/", $rawline)) {
+			else if($this->features['headings'] && preg_match("/^={3,}\s*$/", $rawline)) {
 				// <h1> underline
 				$lines[] = array('type'=>'headingunderline', 'level'=>1, 'raw'=>$rawline);
 			}
-			else if(preg_match("/^-{3,}\s*$/", $rawline)) {
+			else if($this->features['headings'] && preg_match("/^-{3,}\s*$/", $rawline)) {
 				// <h2> underline
 				$lines[] = array('type'=>'headingunderline', 'level'=>2, 'raw'=>$rawline);
 			}
-			else if(preg_match("/^(#{1,6})\s+(.*)/", $rawline, $matches)) {
+			else if($this->features['headings'] && preg_match("/^(#{1,6})\s+(.*)/", $rawline, $matches)) {
 				// heading
 				$lines[] = array('type'=>'heading', 'text'=>trim($matches[2], " \t#"), 'level'=>strlen($matches[1]), 'raw'=>$rawtext);
 			}
@@ -111,7 +119,7 @@ class Document extends Element {
 				// Explicit code delimiter
 				$lines[] = array('type'=>'code', 'data'=>$matches[1], 'raw'=>$rawline);
 			}
-			else if(preg_match("/^Re #(\d+):\s*(.*)$/", $rawline, $matches)) {
+			else if($this->features['replies'] && preg_match("/^Re #(\d+):\s*(.*)$/", $rawline, $matches)) {
 				// Comment link
 				$lines[] = array('type'=>'reply', 'reply-to'=>intval($matches[1]), 'text'=>$matches[2], 'raw'=>$rawline);
 			}
@@ -354,7 +362,7 @@ class Document extends Element {
 				$text .= $nul;
 				$subs[] = '<a href="' . attr($ref['link']) . '" title="' . attr($ref['title']) . '">' . html($matches[1]) . '</a>';
 				$i += strlen($matches[0]) - 1;
-			} else if( $char == '<' && preg_match('/^<\/?\w+(\s+\S[^>]*)?>/', substr($raw, $i), $matches) ) {
+			} else if( $this->features['html'] && $char == '<' && preg_match('/^<\/?\w+(\s+\S[^>]*)?>/', substr($raw, $i), $matches) ) {
 				// HTML tag
 				$text .= $nul;
 				$subs[] = $matches[0];

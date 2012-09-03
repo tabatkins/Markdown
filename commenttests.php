@@ -1,19 +1,21 @@
 <?php
-include "commentmarkdown.php";
+include "markdown.php";
 
 function assert_equal($md, $html) {
-	$parsedmd = CommentMarkdown\parse($md, "post1")->toHTML();
-	if($parsedmd == $html) {
-		echo "<p class=pass>PASS";
-	} else {
-		echo "<p class=fail>FAIL<pre>".htmlspecialchars($md)."</pre>Actual:<pre>".htmlspecialchars($parsedmd)."</pre>Expected:<pre>".htmlspecialchars($html)."</pre>";
-	}
+	$parsedmd = Markdown\Document::parseComment($md, "post1")->toHTML();
+	$pass = $parsedmd == $html;
+	echo "<details class=" . ($pass ? 'pass' : 'fail') . ">";
+		echo "<summary>" . ($pass ? 'PASS' : 'FAIL') . "</summary>";
+		echo "<pre>".htmlspecialchars($md)."</pre>";
+		echo "Actual:<pre>".htmlspecialchars($parsedmd)."</pre>";
+		echo "Expected:<pre>".htmlspecialchars($html)."</pre>";
+	echo "</details>";
 }
 
 ?>
 <style>
-.pass { color: green; margin: 0; font-size: 10px;}
-.fail { color: white; background: red; padding: 2px; font-weight: bold; }
+.pass > summary { color: green; margin: 0; font-size: 10px;}
+.fail > summary { color: white; background: red; padding: 2px; font-weight: bold; }
 pre { background: rgba(0,0,0,.2); }
 </style>
 <?php
@@ -56,3 +58,7 @@ assert_equal("Some <i>inline markup</i>.", "<p>Some &lt;i>inline markup&lt;/i>."
 
 /* Block tests */
 assert_equal("\\1. Not a list", "<p>1. Not a list");
+assert_equal("Testing H1\n========", "<p>Testing H1 ========");
+assert_equal("Testing H2\n--------", "<p>Testing H2<hr>");
+assert_equal("# Testing H1", "<p># Testing H1");
+assert_equal("Re #1: foo bar", "<p>Re <a href='#post1-1'>#1</a>: foo bar");
