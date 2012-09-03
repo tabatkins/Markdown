@@ -111,6 +111,10 @@ class Document extends Element {
 				// Explicit code delimiter
 				$lines[] = array('type'=>'code', 'data'=>$matches[1], 'raw'=>$rawline);
 			}
+			else if(preg_match("/^Re #(\d+):\s*(.*)$/", $rawline, $matches)) {
+				// Comment link
+				$lines[] = array('type'=>'reply', 'reply-to'=>intval($matches[1]), 'text'=>$matches[2], 'raw'=>$rawline);
+			}
 			else {
 				// Normal line of text.
 				preg_match("/^(\s*)(.*)/", $rawline, $matches);
@@ -164,6 +168,10 @@ class Document extends Element {
 					$currelem = new Quote($lines['text']);
 					$currelem->doc = $this;
 					$state = 'quote';
+				} else if($type == 'reply') {
+					$currelem = new Reply($line['reply-to'], $line['text']);
+					$currelem->doc = $this;
+					$state = 'paragraph';
 				} else if($type == 'text' && $nexttype == 'headingunderline') {
 					$currelem = new Heading($nextline['level'], $line['text']);
 					$currelem->doc = $this;
