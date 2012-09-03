@@ -1,10 +1,6 @@
 <?php
 namespace Markdown;
 
-function parse($raw) {
-	return documentFromLines( linesFromText($raw) );
-}
-
 class Document extends Element {
 
 	static function parseDocument($raw) {
