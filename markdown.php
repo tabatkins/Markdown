@@ -323,27 +323,27 @@ class Document extends Element {
 		for($i = 0; $i < strlen($raw); $i++) {
 			$char = $raw[$i];
 
-			if( $char == '*' && preg_match('/^\*{3}([\w\00](.*[\w\00])?)\*{3}[^*\w\00]/', substr($raw, $i), $matches) ) {
+			if( $char == '*' && preg_match('/^\*{3}([\w\00](.*?[\w\00])?)\*{3}[^*\w\00]/', substr($raw, $i), $matches) ) {
 				// Bolditalic with *
 				$text .= '<b><i>' . $this->processNestables($matches[1]) . '</i></b>';
 				$i += strlen($matches[1]) + 5;
-			} else if( $char == '_' && preg_match('/^_{3}([\a-zA-Z0-9\00](.*[\a-zA-Z0-9\00])?)_{3}[^\w\00]/', substr($raw, $i), $matches) ) {
+			} else if( $char == '_' && preg_match('/^_{3}([\a-zA-Z0-9\00](.*?[\a-zA-Z0-9\00])?)_{3}[^\w\00]/', substr($raw, $i), $matches) ) {
 				// Bolditalic with _
 				$text .= '<b><i>' . $this->processNestables($matches[1]) . '</i></b>';
 				$i += strlen($matches[1]) + 5;
-			} else if( $char == '*' && preg_match('/^\*{2}([\w\00](.*[\w\00])?)\*{2}[^*\w\00]/', substr($raw, $i), $matches) ) {
+			} else if( $char == '*' && preg_match('/^\*{2}([\w\00](.*?[\w\00])?)\*{2}[^*\w\00]/', substr($raw, $i), $matches) ) {
 				// Bold with *
 				$text .= '<b>' . $this->processNestables($matches[1]) . '</b>';
 				$i += strlen($matches[1]) + 3;
-			} else if( $char == '_' && preg_match('/^_{2}([\a-zA-Z0-9\00](.*[\a-zA-Z0-9\00])?)_{2}[^\w\00]/', substr($raw, $i), $matches) ) {
+			} else if( $char == '_' && preg_match('/^_{2}([\a-zA-Z0-9\00](.*?[\a-zA-Z0-9\00])?)_{2}[^\w\00]/', substr($raw, $i), $matches) ) {
 				// Bold with _
 				$text .= '<b>' . $this->processNestables($matches[1]) . '</b>';
 				$i += strlen($matches[1]) + 3;
-			} else if( $char == '*' && preg_match('/^\*([\w\00](.*[\w\00])?)\*[^*\w\00]/', substr($raw, $i), $matches) ) {
+			} else if( $char == '*' && preg_match('/^\*([\w\00](.*?[\w\00])?)\*[^*\w\00]/', substr($raw, $i), $matches) ) {
 				// Italic with *
 				$text .= '<i>' . $this->processNestables($matches[1]) . '</i>';
 				$i += strlen($matches[1]) + 1;
-			} else if( $char == '_' && preg_match('/^_([\a-zA-Z0-9\00](.*[\a-zA-Z0-9\00])?)_[^\w\00]/', substr($raw, $i), $matches) ) {
+			} else if( $char == '_' && preg_match('/^_([\a-zA-Z0-9\00](.*?[\a-zA-Z0-9\00])?)_[^\w\00]/', substr($raw, $i), $matches) ) {
 				// Italic with _
 				$text .= '<i>' . $this->processNestables($matches[1]) . '</i>';
 				$i += strlen($matches[1]) + 1;

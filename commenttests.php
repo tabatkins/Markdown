@@ -24,6 +24,7 @@ pre { background: rgba(0,0,0,.2); }
 assert_equal("Testing *italics*.", "<p>Testing <i>italics</i>.");
 assert_equal("Testing *multi-word italics*.", "<p>Testing <i>multi-word italics</i>.");
 assert_equal("Testing *multi-word 2*3 italics*.", "<p>Testing <i>multi-word 2*3 italics</i>.");
+assert_equal("Testing *more* than *one* italics.", "<p>Testing <i>more</i> than <i>one</i> italics.");
 assert_equal("Testing `literal *text*`.", "<p>Testing <code>literal *text*</code>.");
 assert_equal("Testing ``double ` literal`` text.", "<p>Testing <code>double ` literal</code> text.");
 assert_equal("Testing `` literal `` spaces.", "<p>Testing <code>literal</code> spaces.");
