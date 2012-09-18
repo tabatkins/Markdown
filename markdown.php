@@ -134,9 +134,9 @@ class Document extends Element {
 				// Link reference
 				$lines[] = array('type'=>'ref', 'ref'=>$matches[1], 'link'=>$matches[2], 'title'=>$matches[3], 'raw'=>$rawline);
 			}
-			else if(preg_match("/^~~~~(.*)/", $rawline, $matches)) {
+			else if(preg_match("/^(~{3,})(.*)/", $rawline, $matches)) {
 				// Explicit code delimiter
-				$lines[] = array('type'=>'code', 'data'=>$matches[1], 'raw'=>$rawline);
+				$lines[] = array('type'=>'code', 'tildas'=>strlen($matches[1]), 'data'=>$matches[2], 'raw'=>$rawline);
 			}
 			else if($this->features['replies'] && preg_match("/^Re #(\d+):\s*(.*)$/", $rawline, $matches)) {
 				// Comment link
@@ -175,6 +175,7 @@ class Document extends Element {
 					$this->append($currelem);
 				} else if($type == 'code') {
 					$currelem = new Code;
+					$tildas = $line['tildas'];
 					$currelem->doc = $this;
 					$state = 'explicit-code';
 				} else if($type == 'text' && $line['spaces'] >= 4) {
@@ -222,7 +223,7 @@ class Document extends Element {
 					$state = 'paragraph';
 				}
 			} else if($state == 'explicit-code') {
-				if($type == 'code') {
+				if($type == 'code' && $line['tildas'] == $tildas) {
 					$this->append($currelem);
 					$state = 'start';
 				} else if($type == 'eof') {
