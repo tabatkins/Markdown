@@ -212,6 +212,10 @@ class Document extends Element {
 					$currelem->doc = $this;
 					$this->append($currelem);
 					$i++;
+				} else if($type == 'headingunderline') {
+					$currelem = new Paragraph($line['raw']);
+					$currelem->doc = $this;
+					$state = 'paragraph';
 				} else if($type == 'text') {
 					$currelem = new Paragraph($line['text']);
 					$currelem->doc = $this;
@@ -496,11 +500,17 @@ class Separator extends Element {
 
 class Heading extends Element {
 	public $text;
+	public $id = '';
 	public $level;
 
 	function __construct($level, $text) {
 		$this->level = $level;
-		$this->text = $text;
+		if(preg_match("/(.*?)\{#([\w-]+)\}\s*/", $text, $matches)) {
+			$this->text = $matches[1];
+			$this->id = $matches[2];
+		} else {
+			$this->text = $text;
+		}
 	}
 
 	function finish() {
@@ -509,7 +519,12 @@ class Heading extends Element {
 	}
 
 	function toHTML() {
-		return "<h" . $this->level . ">" . $this->text . "</h" . $this->level . ">";
+		$text = "<h" . $this->level;
+		if($this->id) {
+			$text .= " id='" . $this->id . "'";
+		}
+		$text .= ">" . $this->text . "</h" . $this->level . ">";
+		return $text;
 	}
 }
 
