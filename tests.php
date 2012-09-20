@@ -7,8 +7,12 @@ function assert_equal($md, $html) {
 	echo "<details class=" . ($pass ? 'pass' : 'fail') . ">";
 		echo "<summary>" . ($pass ? 'PASS' : 'FAIL') . "</summary>";
 		echo "<pre>".htmlspecialchars($md)."</pre>";
-		echo "Actual:<pre>".htmlspecialchars($parsedmd)."</pre>";
-		echo "Expected:<pre>".htmlspecialchars($html)."</pre>";
+		echo "Expected/Actual:<pre>".htmlspecialchars($html)."</pre><pre>".htmlspecialchars($parsedmd)."</pre>";
+		if(!$pass) {
+			$doc = new Markdown\Document;
+			echo "<details><summary>Lines</summary><pre>" . htmlspecialchars(print_r($doc->linesFromText(explode("\n", $md)), true)) . "</pre></details>";
+			echo "<details><summary>Doc</summary><pre>" . htmlspecialchars(print_r(Markdown\Document::parseDocument($md), true)) . "</pre></details>";
+		}
 	echo "</details>";
 }
 
@@ -16,7 +20,9 @@ function assert_equal($md, $html) {
 <style>
 .pass > summary { color: green; margin: 0; font-size: 10px;}
 .fail > summary { color: white; background: red; padding: 2px; font-weight: bold; }
-pre { background: rgba(0,0,0,.2); }
+ins { background: #dfd; color: #080; text-decoration: none; }
+pre { background: rgba(0,0,0,.2); margin-bottom: 0; }
+pre + pre { margin-top: 0; }
 </style>
 <?php
 
@@ -94,3 +100,5 @@ assert_equal("foo\n<div>\n bar\n1. bar\n </div>\n</div>\nfoo", "<p>foo<div>\n ba
 assert_equal("~~~\n*foo*\n~~~", "<pre class='code'>*foo*</pre>");
 assert_equal("~~~~~\n*foo*\n~~~~~", "<pre class='code'>*foo*</pre>");
 assert_equal("~~~\n~~~~\n~~~", "<pre class='code'>~~~~</pre>");
+
+assert_equal("foo | bar\n--- | ---\n*foo* cell | bar cell", "<table><thead><tr><th align=''>foo<th align=''>bar<tbody><tr><td align=''><i>foo</i> cell<td align=''>bar cell</table>");

@@ -142,6 +142,14 @@ class Document extends Element {
 				// Comment link
 				$lines[] = array('type'=>'reply', 'reply-to'=>intval($matches[1]), 'text'=>$matches[2], 'raw'=>$rawline);
 			}
+			else if(preg_match("/^\|?(\s*:?-+:?\s*\|)+(\s*:?-+:?\s*)?$/", $rawline)) {
+				// Table separator
+				$lines[] = array('type'=>'table-separator', 'raw'=>$rawline);
+			}
+			else if(preg_match("/\|/", $rawline)) {
+				// Table row
+				$lines[] = array('type'=>'table-row', 'raw'=>$rawline);
+			}
 			else {
 				// Normal line of text.
 				preg_match("/^(\s*)(.*)/", $rawline, $matches);
@@ -213,12 +221,18 @@ class Document extends Element {
 					$currelem->doc = $this;
 					$this->append($currelem);
 					$i++;
-				} else if($type == 'headingunderline') {
-					$currelem = new Paragraph($line['raw']);
+				} else if($type == 'table-row' && $nexttype == 'table-separator' && $lines[$i+2]['type'] == 'table-row') {
+					$currelem = new Table($line, $nextline, $lines[$i+2]);
 					$currelem->doc = $this;
-					$state = 'paragraph';
+					$i += 2;
+					$state = 'table';
 				} else if($type == 'text') {
 					$currelem = new Paragraph($line['text']);
+					$currelem->doc = $this;
+					$state = 'paragraph';
+				} else {
+					// lines that weren't caught as anything else
+					$currelem = new Paragraph($line['raw']);
 					$currelem->doc = $this;
 					$state = 'paragraph';
 				}
@@ -288,6 +302,14 @@ class Document extends Element {
 					$state = 'start';
 				} else {
 					$currelem->append($line['raw']);
+				}
+			} else if($state == 'table') {
+				if($type == 'table-row') {
+					$currelem->append($line['raw']);
+				} else {
+					$i--;
+					$this->append($currelem);
+					$state = 'start';
 				}
 			} else if($state == 'paragraph') {
 				if($type == 'text') {
@@ -719,5 +741,62 @@ class NumberedList extends MarkdownList {
 		}
 		$raw .= "</ol>";
 		return $raw;
+	}
+}
+
+class Table extends Element {
+	public $header = array();
+	public $alignments = array();
+	public $rows = array();
+	function __construct($header, $separator, $firstline) {
+		$this->header = explode("|", trim($header['raw'], "| \t"));
+		$separatorCells = explode("|", trim($separator['raw'], "| \t"));
+		$this->rows[0] = explode("|", trim($firstline['raw'], "| \t"));
+
+		foreach($separatorCells as $cell) {
+			$cell = trim(cell);
+			if($cell[0] == ':' && $cell[strlen($cell)-1] == ':') {
+				$this->alignments[] = "center";
+			} else if($cell[0] == ':') {
+				$this->alignments[] = "left";
+			} else if($cell[strlen(cell)-1] == ':') {
+				$this->alignments[] = "right";
+			} else {
+				$this->alignments[] = "";
+			}
+		}
+	}
+
+	function append($row) {
+		$this->rows[] = explode("|", trim($row, "| \t"));
+		return $this;
+	}
+
+	function finish() {
+		foreach($this->header as &$th) {
+			$th = $this->doc->parseInlines(trim($th));
+		}
+		foreach($this->rows as &$row) {
+			foreach($row as &$td) {
+				$td = $this->doc->parseInlines(trim($td));
+			}
+		}
+		return parent::finish();
+	}
+
+	function toHTML() {
+		$text = "<table><thead><tr>";
+		foreach($this->header as $i=>$th) {
+			$text .= "<th align='" . $this->alignments[$i] . "'>" . $th;
+		}
+		$text .= "<tbody>";
+		foreach($this->rows as $row) {
+			$text .= "<tr>";
+			foreach($row as $i=>$td) {
+				$text .= "<td align='" . $this->alignments[$i] . "'>" . $td;
+			}
+		}
+		$text .= "</table>";
+		return $text;
 	}
 }
