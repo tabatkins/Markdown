@@ -104,7 +104,7 @@ class Document extends Element {
 			}
 			else if($this->features['headings'] && preg_match("/^(#{1,6})\s+(.*)/", $rawline, $matches)) {
 				// heading
-				$lines[] = array('type'=>'heading', 'text'=>trim($matches[2], " \t#"), 'level'=>strlen($matches[1]), 'raw'=>$rawtext);
+				$lines[] = array('type'=>'heading', 'text'=>trim($matches[2], " \t#"), 'level'=>strlen($matches[1]), 'raw'=>$rawline);
 			}
 			else if(preg_match("/^( (\*\s*){3,} | (-\s*){3,} | (_\s*){3,} )$/x", trim($rawline))) {
 				// <hr>
@@ -130,7 +130,7 @@ class Document extends Element {
 				// Blockquote
 				$lines[] = array('type'=>'quote', 'text'=>$matches[1], 'raw'=>$rawline);
 			}
-			else if(preg_match("/^[ ]{0,3} \[([^\]]+)\] : \s* (\S+) \s* (?| \"([^\"]+)\" | '([^']+)' | \(([^)]+)\) | ) \s*$/x", $rawline, $matches)) {
+			else if(preg_match("/^[ ]{0,3} \[([^\]]+)\] : \s* (\S+) \s* (?| \"([^\"]+)\" | '([^']+)' | \(([^)]+)\) | () ) \s*$/x", $rawline, $matches)) {
 				// Link reference
 				$lines[] = array('type'=>'ref', 'ref'=>$matches[1], 'link'=>$matches[2], 'title'=>$matches[3], 'raw'=>$rawline);
 			}
@@ -161,7 +161,8 @@ class Document extends Element {
 
 	function documentFromLines($lines, $postid='') {
 		$state = "start";
-		$lines[] = array('eof');
+		$lines[] = array('type'=>'eof');
+		$lines[] = array('type'=>'eof');
 		$currelem = null;
 		for($i = 0; $i < count($lines); $i++) {
 			$line = $lines[$i];
@@ -169,10 +170,14 @@ class Document extends Element {
 			$nextline = $lines[$i+1];
 			$nexttype = $nextline['type'];
 
+			//echo "<pre>";print_r($lines);print_r($line);print_r($nextline);echo "</pre>";
+
 			if($state == "start") {
 				$currelem = null;
 				if($type == 'blank') {
 					// Do nothing.
+				} else if($type == 'eof') {
+					break;
 				} else if($type == 'hr' || ($type == 'headingunderline' && $line['level'] == 2)) {
 					$currelem = new Separator;
 					$currelem->doc = $this;
@@ -754,12 +759,12 @@ class Table extends Element {
 		$this->rows[0] = explode("|", trim($firstline['raw'], "| \t"));
 
 		foreach($separatorCells as $cell) {
-			$cell = trim(cell);
+			$cell = trim($cell);
 			if($cell[0] == ':' && $cell[strlen($cell)-1] == ':') {
 				$this->alignments[] = "center";
 			} else if($cell[0] == ':') {
 				$this->alignments[] = "left";
-			} else if($cell[strlen(cell)-1] == ':') {
+			} else if($cell[strlen($cell)-1] == ':') {
 				$this->alignments[] = "right";
 			} else {
 				$this->alignments[] = "";

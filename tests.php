@@ -1,6 +1,8 @@
 <?php
 include "markdown.php";
 
+error_reporting(E_ALL);
+
 function assert_equal($md, $html) {
 	$parsedmd = Markdown\Document::parseDocument($md)->toHTML();
 	$pass = $parsedmd == $html;
