@@ -355,19 +355,19 @@ class Document extends Element {
 		for($i = 0; $i < strlen($raw); $i++) {
 			$char = $raw[$i];
 
-			if( $char == '*' && preg_match('/^\*{3}([\w\00](.*?[\w\00])?)\*{3}[^*\w\00]/', substr($raw, $i), $matches) ) {
+			if( $char == '*' && preg_match('/^\*{3}(\S(.*?\S)?)\*{3}/', substr($raw, $i), $matches) ) {
 				// Bolditalic with *
 				$text .= '<b><i>' . $this->processNestables($matches[1]) . '</i></b>';
 				$i += strlen($matches[1]) + 5;
-			} else if( $char == '_' && preg_match('/^_{3}([\a-zA-Z0-9\00](.*?[\a-zA-Z0-9\00])?)_{3}[^\w\00]/', substr($raw, $i), $matches) ) {
+			} else if( $char == '_' && preg_match('/^___(\S(.*?\S)?)___/', substr($raw, $i), $matches) ) {
 				// Bolditalic with _
 				$text .= '<b><i>' . $this->processNestables($matches[1]) . '</i></b>';
 				$i += strlen($matches[1]) + 5;
-			} else if( $char == '*' && preg_match('/^\*{2}([\w\00](.*?[\w\00])?)\*{2}[^*\w\00]/', substr($raw, $i), $matches) ) {
+			} else if( $char == '*' && preg_match('/^\*{2}(\S(.*?\S)?)\*{2}/', substr($raw, $i), $matches) ) {
 				// Bold with *
 				$text .= '<b>' . $this->processNestables($matches[1]) . '</b>';
 				$i += strlen($matches[1]) + 3;
-			} else if( $char == '_' && preg_match('/^_{2}([\a-zA-Z0-9\00](.*?[\a-zA-Z0-9\00])?)_{2}[^\w\00]/', substr($raw, $i), $matches) ) {
+			} else if( $char == '_' && preg_match('/^__(\S(.*?\S)?)__/', substr($raw, $i), $matches) ) {
 				// Bold with _
 				$text .= '<b>' . $this->processNestables($matches[1]) . '</b>';
 				$i += strlen($matches[1]) + 3;

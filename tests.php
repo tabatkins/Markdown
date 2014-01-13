@@ -41,6 +41,7 @@ assert_equal("Testing ````` text.", "<p>Testing <code>`</code> text.");
 assert_equal("Testing an & character.", "<p>Testing an &amp; character.");
 assert_equal("Testing an &copy; reference.", "<p>Testing an &copy; reference.");
 assert_equal("Testing **bold**.", "<p>Testing <b>bold</b>.");
+assert_equal("Testing **some bold!**", "<p>Testing <b>some bold!</b>");
 assert_equal("Testing ***bold italic***.", "<p>Testing <b><i>bold italic</i></b>.");
 assert_equal("Testing *some **nested** text* here.", "<p>Testing <i>some <b>nested</b> text</i> here.");
 assert_equal("Testing *some **misnested text* here**.", "<p>Testing <i>some **misnested text</i> here**.");
