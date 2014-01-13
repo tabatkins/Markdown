@@ -59,6 +59,7 @@ assert_equal("Testing [ref links][ref4].\n [ref4]: http://example.com (a title)"
 assert_equal("Testing [unreffed links][ref 4].", '<p>Testing [unreffed links][ref 4].');
 assert_equal("Testing [ref links][].\n [Ref Links]: http://example.com (a title)", '<p>Testing <a href="http://example.com" title="a title">ref links</a>.');
 assert_equal("Testing ![images](http://xanthir.com/pony).", '<p>Testing <img src="http://xanthir.com/pony" alt="images" title="">.');
+assert_equal("Testing ![](http://xanthir.com/pony) no-alt images.", '<p>Testing <img src="http://xanthir.com/pony" alt="" title=""> no-alt images.');
 assert_equal("Testing ![ref images][ref5].\n [ref5]: http://xanthir.com/pony ", '<p>Testing <img src="http://xanthir.com/pony" alt="ref images" title="">.');
 assert_equal("Testing ![ref images][ref6].\n [ref6]: http://xanthir.com/pony \"a title\"", '<p>Testing <img src="http://xanthir.com/pony" alt="ref images" title="a title">.');
 assert_equal("Testing ![ref images][ref7].\n [ref7]: http://xanthir.com/pony 'a title'", '<p>Testing <img src="http://xanthir.com/pony" alt="ref images" title="a title">.');

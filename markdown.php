@@ -403,12 +403,12 @@ class Document extends Element {
 				$text .= $nul;
 				$subs[] = '<code>' . html($matches[1]) . '</code>';
 				$i += strlen($matches[0]) - 1;
-			} else if( $char == '!' && preg_match('/^! \[ ([^\]]+) \] \( ([^\s)]+)(\s+[^)]*|) \)/x', substr($raw, $i), $matches) ) {
+			} else if( $char == '!' && preg_match('/^! \[ ([^\]]*) \] \( ([^\s)]+)(\s+[^)]*|) \)/x', substr($raw, $i), $matches) ) {
 				// Image: ![alt](link title)
 				$text .= $nul;
 				$subs[] = '<img src="' . attr($matches[2]) . '" alt="' . attr($matches[1]) . '" title="' . attr($matches[3]) . '">';
 				$i += strlen($matches[0]) - 1;
-			} else if( $char == '!' && preg_match('/^! \[ ([^\]]+) \]\[ ([^\]]+) \]/x', substr($raw, $i), $matches) && $this->hasLink($matches[2]) ) {
+			} else if( $char == '!' && preg_match('/^! \[ ([^\]]*) \]\[ ([^\]]+) \]/x', substr($raw, $i), $matches) && $this->hasLink($matches[2]) ) {
 				// Referenced image: ![alt][ref]
 				$ref = $this->getLink($matches[2]);
 				$text .= $nul;
